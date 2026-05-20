@@ -1,7 +1,7 @@
-"""Haystack Agent that monitors semgrep.haystack.so for:
+"""Haystack Agent that monitors the configured Haystack intranet for:
   - new posts on the dashboard feed
   - new events
-  - changes to the company offsite page
+  - changes to a tracked page
 
 Run: `uv run agent.py`
 """
@@ -21,8 +21,8 @@ from tools import ALL_TOOLS
 load_dotenv()
 
 SYSTEM_PROMPT = """\
-You are an assistant that monitors the Semgrep Haystack intranet
-(semgrep.haystack.so). On each run, you must:
+You are an assistant that monitors the configured company Haystack intranet.
+On each run, you must:
 
 1. Discover and read the dashboard feed (start at "/dashboard"). Identify
    individual posts. Compare against `read_state("posts_seen")` (a list of

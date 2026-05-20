@@ -1,11 +1,13 @@
-"""MCP server exposing The Source (semgrep.haystack.so) as tools for agents.
+"""MCP server exposing a Haystack-backed company intranet as tools for agents.
 
 Two tools:
   - search_the_source(query): AI-powered intranet search
   - fetch_the_source_page(path): fetch a specific page by path or URL
 
+Configure the target instance via the HAYSTACK_BASE_URL env var.
+
 Register with Claude Code:
-  claude mcp add the-source -- uv --directory /absolute/path/to/haystack-agent \\
+  claude mcp add the-source -- uv --directory /absolute/path/to/the-source-mcp \\
       run mcp_server.py
 """
 import atexit
@@ -22,7 +24,7 @@ atexit.register(browser.stop)
 
 @mcp.tool()
 def search_the_source(query: str) -> str:
-    """Search 'The Source' (Semgrep's Haystack intranet) for the given query.
+    """Search 'The Source' — the configured Haystack company intranet — for the given query.
     Uses the AI-powered search view which returns a synthesized answer plus
     relevant posts, pages, people, and events.
 
@@ -46,8 +48,8 @@ def search_the_source(query: str) -> str:
 def fetch_the_source_page(path_or_url: str) -> str:
     """Fetch a specific page on 'The Source'. Use this to follow a link
     returned by `search_the_source`, or to load a known page directly
-    (e.g. "/dashboard", "/events", or a full https://semgrep.haystack.so/...
-    URL).
+    (e.g. "/dashboard", "/events", or a full URL on the configured Haystack
+    host).
 
     Args:
         path_or_url: Path (e.g. "/events") or full URL on the same host.

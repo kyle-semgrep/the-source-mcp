@@ -18,7 +18,7 @@ from playwright.sync_api import sync_playwright
 from paths import STORAGE_STATE
 
 load_dotenv()
-BASE_URL = os.environ.get("HAYSTACK_BASE_URL", "https://semgrep.haystack.so")
+BASE_URL = os.environ.get("HAYSTACK_BASE_URL", "https://your-org.haystack.so")
 
 _requests: queue.Queue[tuple[str, Any] | None] = queue.Queue()
 _responses: queue.Queue[tuple[str, Any]] = queue.Queue()

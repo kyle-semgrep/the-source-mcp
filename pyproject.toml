@@ -1,7 +1,7 @@
 [project]
 name = "haystack-agent"
 version = "0.1.0"
-description = "Agentic monitor for semgrep.haystack.so — new posts, new events, offsite page changes"
+description = "MCP server + agentic monitor for a Haystack-backed company intranet"
 requires-python = ">=3.11"
 dependencies = [
     "haystack-ai>=2.9",

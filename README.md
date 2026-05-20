@@ -1,18 +1,18 @@
 # the-source-mcp
 
-An MCP server that lets Claude Code (and other MCP clients) read Semgrep's
-internal Haystack intranet, **The Source** (`semgrep.haystack.so`).
+An MCP server that lets Claude Code (and other MCP clients) read your
+company's [Haystack](https://haystackteam.com) intranet as a research source.
 
 Two tools are exposed:
 
 - `search_the_source(query)` — runs an AI-powered intranet search and returns
   the rendered results page (including the AI-generated answer).
-- `fetch_the_source_page(path_or_url)` — fetches any page on The Source by
-  path (e.g. `/dashboard`) or full URL.
+- `fetch_the_source_page(path_or_url)` — fetches any page on your Haystack
+  instance by path (e.g. `/dashboard`) or full URL.
 
-Authentication is handled via a Playwright session captured once interactively;
-the session cookie (a 9-day JWT) is reused for headless requests. No
-credentials live in the repo.
+Authentication is handled via a Playwright session captured once interactively
+through your SSO provider; the session cookie is reused for headless requests.
+No credentials live in the repo.
 
 ---
 
@@ -23,7 +23,7 @@ credentials live in the repo.
 Requires [`uv`](https://docs.astral.sh/uv/) and Python 3.11+.
 
 ```bash
-git clone git@github.com:kyle-semgrep/the-source-mcp.git ~/tools/the-source-mcp
+git clone https://github.com/kyle-semgrep/the-source-mcp.git ~/tools/the-source-mcp
 cd ~/tools/the-source-mcp
 uv sync
 uv run playwright install chromium
@@ -35,9 +35,11 @@ uv run playwright install chromium
 cp .env.example .env
 ```
 
-Edit `.env` and set `ANTHROPIC_API_KEY` (only needed if you also want to run
-the standalone `agent.py` smoke-test harness; the MCP tools themselves don't
-call any LLM). `HAYSTACK_BASE_URL` defaults to `https://semgrep.haystack.so`.
+Edit `.env` and set:
+
+- `HAYSTACK_BASE_URL` — your org's Haystack instance, e.g. `https://<your-org>.haystack.so`.
+- `ANTHROPIC_API_KEY` — only needed if you also want to run the standalone
+  `agent.py` smoke-test harness; the MCP tools themselves don't call any LLM.
 
 ### 3. Capture your session
 
@@ -45,10 +47,11 @@ call any LLM). `HAYSTACK_BASE_URL` defaults to `https://semgrep.haystack.so`.
 uv run auth.py
 ```
 
-A headed Chromium window opens. Complete the Okta/SAML SSO flow, land on the
+A headed Chromium window opens. Complete your SSO flow, land on the
 dashboard, then return to the terminal and press Enter. The session is saved
 to `.state/storage_state.json` (gitignored). You will need to re-run this
-every ~9 days when the JWT expires.
+when the session expires (typically every few days, depending on your SSO
+provider's policy).
 
 ### 4. Register with Claude Code
 
@@ -68,11 +71,11 @@ claude mcp list | grep the-source
 
 ### 5. Tell your agents to use it
 
-Add a line to `~/.claude/CLAUDE.md` (or per-project) so agents reach for The
-Source on broad-research prompts:
+Add a line to `~/.claude/CLAUDE.md` (or per-project) so agents reach for the
+intranet on broad-research prompts:
 
-> When asked to "use all sources" for research, query **The Source** (the
-> `the-source` MCP server) alongside Notion and any other connected
+> When asked to "use all sources" for research, query the company intranet
+> via the `the-source` MCP server alongside Notion and any other connected
 > knowledge sources.
 
 ---
@@ -88,17 +91,17 @@ Source on broad-research prompts:
 | `auth.py`         | One-shot interactive login → persists session to `.state/`.    |
 | `state.py`        | Tiny JSON state store used by `agent.py`.                      |
 | `paths.py`        | Centralized filesystem paths.                                  |
-| `.state/`         | **gitignored** — holds `storage_state.json` (JWT cookie).      |
+| `.state/`         | **gitignored** — holds your captured session.                  |
 
 ---
 
 ## Notes & limits
 
 - **Latency:** search runs through the SPA, so a query takes ~3–5 s. Fine for
-  research-on-demand, not for tight loops. A direct call to the
-  `/api/v1/gen_ai/search` protobuf endpoint would be faster but requires a
-  `.proto` definition we don't have.
-- **Result links:** The Source's SPA renders result cards as JS click handlers,
+  research-on-demand, not for tight loops. A direct call to the underlying
+  search API would be faster but the request body is protobuf and we don't
+  have the `.proto` definition.
+- **Result links:** Haystack's SPA renders result cards as JS click handlers,
   not static `<a href>` tags. `search_the_source` returns result *titles* and
   the AI summary; to read a specific result page, call
   `fetch_the_source_page` with a path you know, or extend the server with an
@@ -111,8 +114,8 @@ Source on broad-research prompts:
 ## Security
 
 - Never commit `.state/` or `.env`. The `.gitignore` already excludes both.
-- The session cookie is a SAML-issued JWT — treat it as a credential. It
+- The session cookie is an SSO-issued credential — treat it as such. It
   lives only on your local disk under `.state/storage_state.json`.
-- This tool reads internal Semgrep content. Don't pipe its output to
+- This tool reads internal company content. Don't pipe its output to
   third-party services without the same care you'd apply to anything else
-  from The Source.
+  from your intranet.
