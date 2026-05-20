@@ -5,8 +5,10 @@ its event loop to whichever thread created it. To survive across tool calls,
 we start one long-lived worker thread that owns the browser, and dispatch
 fetch requests to it through a queue.
 """
+import json
 import os
 import queue
+import re
 import threading
 from typing import Any
 from urllib.parse import urljoin
@@ -69,6 +71,29 @@ def _run_worker() -> None:
                                 )
                             finally:
                                 page.close()
+                        except Exception as e:  # noqa: BLE001
+                            _responses.put(("err", repr(e)))
+                    elif op == "api_post":
+                        try:
+                            path, body, jwt = arg
+                            resp = context.request.post(
+                                f"{BASE_URL}{path}",
+                                data=body,
+                                headers={
+                                    "Authorization": f"Bearer {jwt}",
+                                    "Content-Type": "application/x-protobuf",
+                                    "Accept": "application/json, text/plain, */*",
+                                    "Origin": BASE_URL,
+                                    "Referer": f"{BASE_URL}/resources/new?edit=true",
+                                    "sso-provider": "SAML",
+                                    "x-client-type": "web",
+                                    "x-os": "macos",
+                                    "x-client-timezone": "America/New_York",
+                                },
+                            )
+                            _responses.put(
+                                ("ok", {"status": resp.status, "body": resp.body()})
+                            )
                         except Exception as e:  # noqa: BLE001
                             _responses.put(("err", repr(e)))
             finally:
@@ -136,3 +161,64 @@ def search(query: str) -> dict:
 
     url = f"{BASE_URL}/search-app?q={quote(query)}&ai=true"
     return _dispatch("search", url)
+
+
+def _read_jwt() -> str:
+    """Pull the SAML-issued JWT out of the captured session cookies."""
+    state = json.loads(STORAGE_STATE.read_text())
+    for c in state.get("cookies", []):
+        if c.get("name") == "token":
+            return c["value"]
+    raise RuntimeError(
+        f"No 'token' cookie in {STORAGE_STATE}; session may be invalid. "
+        "Run `uv run auth.py` to refresh."
+    )
+
+
+def api_post(path: str, body: bytes) -> dict:
+    """POST a protobuf-encoded body to a /api/v1/... endpoint using the
+    authenticated session. Returns {"status": int, "body": bytes}."""
+    start()
+    jwt = _read_jwt()
+    with _lock:
+        _requests.put(("api_post", (path, body, jwt)))
+        status, payload = _responses.get()
+    if status == "err":
+        raise RuntimeError(f"playwright api_post failed: {payload}")
+    return payload
+
+
+UUID_RE = re.compile(rb"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
+
+
+def create_draft(title: str, body_markdown: str) -> dict:
+    """Create a draft page on The Source via /api/v1/knowledge/create.
+
+    Markdown body is converted to HTML before sending. Always uses the
+    captured "save as draft" flag from the reference cURL (field 47 = 1).
+
+    Returns dict with keys: status, url (if a UUID could be parsed from the
+    response), raw_response_hex (truncated, for debugging).
+    """
+    import markdown as md  # local import keeps top-of-module imports light
+
+    import proto
+
+    html_body = md.markdown(
+        body_markdown,
+        extensions=["extra", "sane_lists", "nl2br"],
+    )
+    request_body = proto.build_create_knowledge(title=title, html_body=html_body)
+    result = api_post("/api/v1/knowledge/create", request_body)
+
+    uuid_match = UUID_RE.search(result["body"])
+    url = (
+        f"{BASE_URL}/resources/{uuid_match.group(0).decode()}"
+        if uuid_match
+        else None
+    )
+    return {
+        "status": result["status"],
+        "url": url,
+        "raw_response_hex": result["body"][:200].hex(),
+    }
