@@ -191,26 +191,36 @@ def api_post(path: str, body: bytes) -> dict:
 UUID_RE = re.compile(rb"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
 
 
-def create_draft(title: str, body_markdown: str) -> dict:
-    """Create a draft page on The Source via /api/v1/knowledge/create.
-
-    Markdown body is converted to HTML before sending. Always uses the
-    captured "save as draft" flag from the reference cURL (field 47 = 1).
-
-    Returns dict with keys: status, url (if a UUID could be parsed from the
-    response), raw_response_hex (truncated, for debugging).
-    """
-    import markdown as md  # local import keeps top-of-module imports light
-
+def list_teams() -> list[dict]:
+    """Fetch the list of teams/groups the caller can post to via
+    /api/v1/teams/list. Returns a list of {"name", "uuid"} dicts."""
     import proto
 
-    html_body = md.markdown(
-        body_markdown,
-        extensions=["extra", "sane_lists", "nl2br"],
-    )
-    request_body = proto.build_create_knowledge(title=title, html_body=html_body)
-    result = api_post("/api/v1/knowledge/create", request_body)
+    # Body captured from the UI's teams/list call — field 4 varint = 10
+    # (probably page_size or similar).
+    result = api_post("/api/v1/teams/list", bytes([0x20, 0x0a]))
+    return proto.parse_teams_list_response(result["body"])
 
+
+def _md_to_html(body_markdown: str) -> str:
+    import markdown as md
+    return md.markdown(body_markdown, extensions=["extra", "sane_lists", "nl2br"])
+
+
+def create_draft_page(title: str, body_markdown: str) -> dict:
+    """Create a draft *page* (wiki-style /knowledge/ entry).
+
+    NOTE: pages aren't the primary user-facing content type on The Source.
+    Most user-generated content goes through `create_draft_announcement`
+    (which corresponds to "posts"). This is kept for internal use and
+    completeness; it is NOT exposed as an MCP tool.
+    """
+    import proto
+
+    request_body = proto.build_create_knowledge(
+        title=title, html_body=_md_to_html(body_markdown)
+    )
+    result = api_post("/api/v1/knowledge/create", request_body)
     uuid_match = UUID_RE.search(result["body"])
     url = (
         f"{BASE_URL}/resources/{uuid_match.group(0).decode()}"
@@ -220,5 +230,54 @@ def create_draft(title: str, body_markdown: str) -> dict:
     return {
         "status": result["status"],
         "url": url,
+        "raw_response_hex": result["body"][:200].hex(),
+    }
+
+
+def create_draft_announcement(
+    title: str, body_markdown: str, destination_group_name: str
+) -> dict:
+    """Create a DRAFT post (/announcement/create) targeted at a specific
+    group. The destination is resolved by name via list_teams(); if no
+    exact match (case-insensitive) is found, raises ValueError with the
+    list of available group names so the caller can correct.
+
+    Drafts are invisible to others until the user publishes from the UI.
+    """
+    import proto
+
+    teams = list_teams()
+    name_lower = destination_group_name.strip().lower()
+    matches = [t for t in teams if t["name"].lower() == name_lower]
+    if not matches:
+        available = ", ".join(repr(t["name"]) for t in teams)
+        raise ValueError(
+            f"No group matches {destination_group_name!r}. "
+            f"Available groups: {available}"
+        )
+    if len(matches) > 1:
+        raise ValueError(
+            f"Ambiguous group name {destination_group_name!r} — "
+            f"matches {len(matches)} groups."
+        )
+    destination = matches[0]
+
+    request_body = proto.build_create_announcement_draft(
+        title=title,
+        html_body=_md_to_html(body_markdown),
+        destination_group_id=destination["uuid"],
+    )
+    result = api_post("/api/v1/announcement/create", request_body)
+    uuid_match = UUID_RE.search(result["body"])
+    url = (
+        f"{BASE_URL}/resources/{uuid_match.group(0).decode()}"
+        if uuid_match
+        else None
+    )
+    return {
+        "status": result["status"],
+        "url": url,
+        "destination_name": destination["name"],
+        "destination_uuid": destination["uuid"],
         "raw_response_hex": result["body"][:200].hex(),
     }

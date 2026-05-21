@@ -3,12 +3,19 @@
 An MCP server that lets Claude Code (and other MCP clients) read your
 company's [Haystack](https://haystackteam.com) intranet as a research source.
 
-Two tools are exposed:
+Four tools are exposed:
 
 - `search_the_source(query)` — runs an AI-powered intranet search and returns
   the rendered results page (including the AI-generated answer).
 - `fetch_the_source_page(path_or_url)` — fetches any page on your Haystack
   instance by path (e.g. `/dashboard`) or full URL.
+- `list_my_destination_groups_on_the_source()` — lists the groups (teams) the
+  caller can post to; pair with the write tool below.
+- `create_draft_post_on_the_source(title, body_markdown, destination_group_name)`
+  — creates an **unpublished draft post** in the named group. Markdown body is
+  converted to HTML. The draft is invisible to others until you publish it
+  via the UI. The tool always requires an explicit destination group; there
+  is no `publish=True` flag.
 
 Authentication is handled via a Playwright session captured once interactively
 through your SSO provider; the session cookie is reused for headless requests.
@@ -84,7 +91,8 @@ intranet on broad-research prompts:
 
 | File              | Purpose                                                        |
 | ----------------- | -------------------------------------------------------------- |
-| `mcp_server.py`   | FastMCP server entry point; registers the two tools.           |
+| `mcp_server.py`   | FastMCP server entry point; registers the four tools.          |
+| `proto.py`        | Hand-written protobuf encoder/decoder for the API requests.    |
 | `browser.py`      | Playwright session owned by a dedicated worker thread.         |
 | `tools.py`        | Haystack-style tool wrappers (used only by `agent.py`).        |
 | `agent.py`        | Standalone Haystack agent — smoke-test / development harness.  |
