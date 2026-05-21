@@ -19,6 +19,10 @@ Five tools are exposed:
 - `list_my_drafts_on_the_source()` — lists your existing draft posts so an
   agent can avoid creating duplicates and you can see the full set of drafts
   at a glance (Haystack has no dedicated "all drafts" page in the SPA).
+- `delete_post_on_the_source(post_id, confirm_title)` — deletes a post you
+  authored. Requires the agent to echo the post's exact title as a guard
+  against typos. Drafts are deleted permanently; published posts go to your
+  content archive.
 
 Authentication is handled via a Playwright session captured once interactively
 through your SSO provider; the session cookie is reused for headless requests.
