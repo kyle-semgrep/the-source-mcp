@@ -269,8 +269,11 @@ def create_draft_announcement(
     )
     result = api_post("/api/v1/announcement/create", request_body)
     uuid_match = UUID_RE.search(result["body"])
+    # Posts live at /post/<uuid>, NOT /resources/<uuid> (that's the path
+    # for /knowledge pages). The two namespaces share the resources/get_*
+    # API surface but have separate SPA routes.
     url = (
-        f"{BASE_URL}/resources/{uuid_match.group(0).decode()}"
+        f"{BASE_URL}/post/{uuid_match.group(0).decode()}"
         if uuid_match
         else None
     )
