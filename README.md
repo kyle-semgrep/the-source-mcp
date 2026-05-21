@@ -52,8 +52,6 @@ cp .env.example .env
 Edit `.env` and set:
 
 - `HAYSTACK_BASE_URL` — your org's Haystack instance, e.g. `https://<your-org>.haystack.so`.
-- `ANTHROPIC_API_KEY` — only needed if you also want to run the standalone
-  `agent.py` smoke-test harness; the MCP tools themselves don't call any LLM.
 
 ### 3. Capture your session
 
@@ -98,13 +96,10 @@ intranet on broad-research prompts:
 
 | File              | Purpose                                                        |
 | ----------------- | -------------------------------------------------------------- |
-| `mcp_server.py`   | FastMCP server entry point; registers the four tools.          |
-| `proto.py`        | Hand-written protobuf encoder/decoder for the API requests.    |
+| `mcp_server.py`   | FastMCP server entry point; registers the six tools.           |
 | `browser.py`      | Playwright session owned by a dedicated worker thread.         |
-| `tools.py`        | Haystack-style tool wrappers (used only by `agent.py`).        |
-| `agent.py`        | Standalone Haystack agent — smoke-test / development harness.  |
+| `proto.py`        | Hand-written protobuf encoder/decoder for the API requests.    |
 | `auth.py`         | One-shot interactive login → persists session to `.state/`.    |
-| `state.py`        | Tiny JSON state store used by `agent.py`.                      |
 | `paths.py`        | Centralized filesystem paths.                                  |
 | `.state/`         | **gitignored** — holds your captured session.                  |
 

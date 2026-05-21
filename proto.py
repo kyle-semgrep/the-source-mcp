@@ -90,25 +90,6 @@ def iter_fields(data: bytes, start: int = 0, end: int | None = None) -> Iterator
 
 # ---------- request builders ----------
 
-def build_create_knowledge(title: str, html_body: str) -> bytes:
-    """/api/v1/knowledge/create body for a draft page.
-
-    Field map reverse-engineered from a captured "save as draft" cURL.
-    Pages aren't really intended for user creation on The Source; prefer
-    `build_create_announcement_draft` for posts. This is kept for
-    completeness.
-    """
-    inner = (
-        field_string(2, title)
-        + field_string(4, title)
-        + field_varint(7, 15)
-        + field_string(23, html_body)
-        + field_varint(38, 3)
-        + field_submessage(42, field_string(3, "50"))
-    )
-    return field_submessage(1, inner) + field_varint(47, 1)
-
-
 # UUID identifying the calling user's "My Private Pages" container. This was
 # captured from Kyle's session and may differ per user; if so we'd need a
 # discovery step (call /knowledge/list with no parent and look at the root).

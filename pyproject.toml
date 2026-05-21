@@ -1,11 +1,9 @@
 [project]
-name = "haystack-agent"
+name = "the-source-mcp"
 version = "0.1.0"
-description = "MCP server + agentic monitor for a Haystack-backed company intranet"
+description = "MCP server for a Haystack-backed company intranet"
 requires-python = ">=3.11"
 dependencies = [
-    "haystack-ai>=2.9",
-    "anthropic-haystack>=2.0",
     "playwright>=1.49",
     "beautifulsoup4>=4.12",
     "python-dotenv>=1.0",

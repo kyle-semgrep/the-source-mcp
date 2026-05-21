@@ -278,33 +278,6 @@ def _md_to_html(body_markdown: str) -> str:
     return md.markdown(body_markdown, extensions=["extra", "sane_lists", "nl2br"])
 
 
-def create_draft_page(title: str, body_markdown: str) -> dict:
-    """Create a draft *page* (wiki-style /knowledge/ entry).
-
-    NOTE: pages aren't the primary user-facing content type on The Source.
-    Most user-generated content goes through `create_draft_announcement`
-    (which corresponds to "posts"). This is kept for internal use and
-    completeness; it is NOT exposed as an MCP tool.
-    """
-    import proto
-
-    request_body = proto.build_create_knowledge(
-        title=title, html_body=_md_to_html(body_markdown)
-    )
-    result = api_post("/api/v1/knowledge/create", request_body)
-    uuid_match = UUID_RE.search(result["body"])
-    url = (
-        f"{BASE_URL}/resources/{uuid_match.group(0).decode()}"
-        if uuid_match
-        else None
-    )
-    return {
-        "status": result["status"],
-        "url": url,
-        "raw_response_hex": result["body"][:200].hex(),
-    }
-
-
 def create_draft_announcement(
     title: str, body_markdown: str, destination_group_name: str
 ) -> dict:
