@@ -1,12 +1,13 @@
 """MCP server exposing a Haystack-backed company intranet as tools for agents.
 
-Four tools:
+Five tools:
   - search_the_source(query): AI-powered intranet search
   - fetch_the_source_page(path): fetch a specific page by path or URL
   - list_my_destination_groups_on_the_source(): list groups the caller
         can post to (name + uuid pairs)
   - create_draft_post_on_the_source(title, body_markdown, destination_group_name):
         create an unpublished draft post in the named group
+  - list_my_drafts_on_the_source(): list the caller's existing draft posts
 
 Configure the target instance via the HAYSTACK_BASE_URL env var.
 
@@ -139,6 +140,24 @@ def create_draft_post_on_the_source(
         f"Open the URL above to review and publish manually."
     )
     return json.dumps(result)
+
+
+@mcp.tool()
+def list_my_drafts_on_the_source() -> str:
+    """List the caller's existing draft posts on The Source.
+
+    Useful BEFORE calling `create_draft_post_on_the_source` so the agent
+    can check whether a draft on the same topic already exists (and offer
+    to update it instead of creating a duplicate).
+
+    Returns:
+        JSON array of drafts, each with:
+          - id, title
+          - destination: { uuid, name }   (the group the draft is bound to)
+          - created_iso, last_updated_iso (UTC ISO 8601, when known)
+          - url: ready-to-open /post/<id> URL
+    """
+    return json.dumps(browser.list_drafts())
 
 
 if __name__ == "__main__":

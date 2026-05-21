@@ -191,6 +191,38 @@ def api_post(path: str, body: bytes) -> dict:
 UUID_RE = re.compile(rb"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
 
 
+def list_drafts() -> list[dict]:
+    """Fetch the caller's draft posts (announcements) via
+    /api/v1/announcement/list with draft_only=true. Returns a list of dicts
+    with id, title, destination {uuid, name}, created/last_updated
+    timestamps, and a /post/<id> URL ready to open.
+    """
+    import datetime as dt
+
+    import proto
+
+    result = api_post(
+        "/api/v1/announcement/list", proto.build_list_announcements_draft_only()
+    )
+    drafts = proto.parse_list_announcements_response(result["body"])
+    for d in drafts:
+        if "id" in d:
+            d["url"] = f"{BASE_URL}/post/{d['id']}"
+        for k in ("created_ts", "last_updated_ts"):
+            v = d.get(k)
+            if isinstance(v, int) and v > 0:
+                # Server gives unix seconds; ms in case the field grew.
+                if v > 10_000_000_000:
+                    v //= 1000
+                try:
+                    d[k.replace("_ts", "_iso")] = dt.datetime.fromtimestamp(
+                        v, tz=dt.timezone.utc
+                    ).isoformat()
+                except Exception:  # noqa: BLE001
+                    pass
+    return drafts
+
+
 def list_teams() -> list[dict]:
     """Fetch the list of teams/groups the caller can post to via
     /api/v1/teams/list. Returns a list of {"name", "uuid"} dicts."""
