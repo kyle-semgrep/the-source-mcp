@@ -3,7 +3,7 @@
 An MCP server that lets Claude Code (and other MCP clients) read your
 company's [Haystack](https://haystackteam.com) intranet as a research source.
 
-Four tools are exposed:
+Five tools are exposed:
 
 - `search_the_source(query)` — runs an AI-powered intranet search and returns
   the rendered results page (including the AI-generated answer).
@@ -16,6 +16,9 @@ Four tools are exposed:
   converted to HTML. The draft is invisible to others until you publish it
   via the UI. The tool always requires an explicit destination group; there
   is no `publish=True` flag.
+- `list_my_drafts_on_the_source()` — lists your existing draft posts so an
+  agent can avoid creating duplicates and you can see the full set of drafts
+  at a glance (Haystack has no dedicated "all drafts" page in the SPA).
 
 Authentication is handled via a Playwright session captured once interactively
 through your SSO provider; the session cookie is reused for headless requests.
