@@ -1,6 +1,6 @@
 """MCP server exposing a Haystack-backed company intranet as tools for agents.
 
-Five tools:
+Six tools:
   - search_the_source(query): AI-powered intranet search
   - fetch_the_source_page(path): fetch a specific page by path or URL
   - list_my_destination_groups_on_the_source(): list groups the caller
@@ -8,6 +8,8 @@ Five tools:
   - create_draft_post_on_the_source(title, body_markdown, destination_group_name):
         create an unpublished draft post in the named group
   - list_my_drafts_on_the_source(): list the caller's existing draft posts
+  - delete_post_on_the_source(post_id, confirm_title): delete a post the
+        caller authored (drafts permanently; published posts go to archive)
 
 Configure the target instance via the HAYSTACK_BASE_URL env var.
 
@@ -158,6 +160,41 @@ def list_my_drafts_on_the_source() -> str:
           - url: ready-to-open /post/<id> URL
     """
     return json.dumps(browser.list_drafts())
+
+
+@mcp.tool()
+def delete_post_on_the_source(post_id: str, confirm_title: str) -> str:
+    """Delete a post (announcement) the caller authored on The Source.
+
+    This is DESTRUCTIVE. To prevent accidental deletion of the wrong
+    record, the tool first fetches the post and verifies its title
+    matches `confirm_title` exactly. The agent MUST pass the title it
+    just observed (e.g. from `list_my_drafts_on_the_source`) — do not
+    invent or shorten it.
+
+    Behavior matches the UI:
+      - For a DRAFT post: permanently removed from the draft manager.
+        Not recoverable.
+      - For a PUBLISHED post: moved to the author's content archive
+        and can be restored from there.
+
+    The agent should confirm with the user before calling.
+
+    Args:
+        post_id: UUID of the post (e.g. from `list_my_drafts_on_the_source`).
+        confirm_title: The exact current title of the post. Must match
+            what's stored server-side; mismatch returns an error and the
+            post is NOT deleted.
+
+    Returns:
+        JSON with status, deleted_post_id, deleted_title — or an error
+        dict if the title check failed.
+    """
+    try:
+        result = browser.delete_post(post_id=post_id, confirm_title=confirm_title)
+    except (ValueError, RuntimeError) as e:
+        return json.dumps({"status": 400, "error": str(e)})
+    return json.dumps(result)
 
 
 if __name__ == "__main__":

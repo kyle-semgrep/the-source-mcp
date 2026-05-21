@@ -191,6 +191,45 @@ def api_post(path: str, body: bytes) -> dict:
 UUID_RE = re.compile(rb"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
 
 
+def delete_post(post_id: str, confirm_title: str) -> dict:
+    """Delete an announcement (post) you authored on The Source.
+
+    Before deleting, fetches the post and verifies its title matches
+    `confirm_title` exactly. Raises ValueError on mismatch so a typo in
+    post_id can't silently delete the wrong record.
+
+    Drafts are deleted permanently; published posts go to the author's
+    content archive (recoverable) per Haystack's standard behavior.
+    """
+    import proto
+
+    get_resp = api_post("/api/v1/announcement/get", proto.build_get_announcement(post_id))
+    if get_resp["status"] != 200:
+        raise RuntimeError(
+            f"could not fetch post {post_id} for confirmation "
+            f"(status {get_resp['status']})"
+        )
+    actual_title = proto.extract_announcement_title(get_resp["body"])
+    if actual_title is None:
+        raise RuntimeError(
+            f"could not parse a title from the post {post_id} response"
+        )
+    if actual_title != confirm_title:
+        raise ValueError(
+            f"refusing to delete: post {post_id} has title "
+            f"{actual_title!r}, not the expected {confirm_title!r}"
+        )
+
+    del_resp = api_post(
+        "/api/v1/announcement/delete", proto.build_delete_announcement(post_id)
+    )
+    return {
+        "status": del_resp["status"],
+        "deleted_post_id": post_id,
+        "deleted_title": actual_title,
+    }
+
+
 def list_drafts() -> list[dict]:
     """Fetch the caller's draft posts (announcements) via
     /api/v1/announcement/list with draft_only=true. Returns a list of dicts

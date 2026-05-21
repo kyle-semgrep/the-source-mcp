@@ -149,6 +149,40 @@ def build_create_announcement_draft(
     return field_submessage(1, inner)
 
 
+def build_delete_announcement(announcement_id: str) -> bytes:
+    """/api/v1/announcement/delete body. Single field 1 = announcement UUID."""
+    return field_string(1, announcement_id)
+
+
+def build_get_announcement(announcement_id: str) -> bytes:
+    """/api/v1/announcement/get body. Single field 1 = announcement UUID."""
+    return field_string(1, announcement_id)
+
+
+def extract_announcement_title(body: bytes) -> str | None:
+    """Walk an announcement-shaped protobuf and return the title (field 3
+    of the Announcement message). The /announcement/get response wraps the
+    Announcement inside an envelope, so we look both at top-level field 3
+    and at field 3 of any field-1 sub-message.
+    """
+    for f, w, v in iter_fields(body):
+        if w != 2 or not isinstance(v, bytes):
+            continue
+        if f == 3:
+            try:
+                return v.decode("utf-8")
+            except UnicodeDecodeError:
+                return None
+        if f == 1:
+            for f2, w2, v2 in iter_fields(v):
+                if f2 == 3 and w2 == 2 and isinstance(v2, bytes):
+                    try:
+                        return v2.decode("utf-8")
+                    except UnicodeDecodeError:
+                        return None
+    return None
+
+
 def build_list_announcements_draft_only() -> bytes:
     """/api/v1/announcement/list body to fetch only the caller's drafts.
 
